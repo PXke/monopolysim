@@ -27,7 +27,7 @@ class Actions:
     def go_to_jail(game, player):
         """Set the player in jail"""
         player.position = 10
-        player.jailed = True
+        player.jailed = 1
         game.board.spaces[10].used += 1
 
     @staticmethod
@@ -264,7 +264,7 @@ class Player:
     """Really simplified player."""
     def __init__(self):
         self.position = 0
-        self.jailed = False
+        self.jailed = 0
 
 
 class Game:
@@ -289,23 +289,40 @@ class Game:
         """Launch the simulation"""
         for i in range(0, self.nb_turns):
             for player in self.players:
-                sum, res = self.dices.roll()
-                if player.jailed:
-                    if res[0] == res[1]:
-                        player.jailed = False
-                        sum, res = self.dices.roll()
-                    else:
-                        continue
-                player.position += sum
-                if player.position > 39:
-                    player.position -= 40
-                current_player_space = self.board.spaces[player.position]
-                current_player_space.used += 1
-                if current_player_space.action:
-                    current_player_space.action(self, player)
+                # Player roll dices
+                move, res = self.dices.roll()
 
+                if player.jailed == 3:
+                    player.jailed = 0
+                elif player.jailed:
+                    # If player is in jail check if it is a double
+                    if res[0] == res[1]:
+                        player.jailed = 0
+                        move, res = self.dices.roll()
+                    else:
+                        player.jailed += 1
+                        continue
+
+                # You can't do more than three doubles or you need to go to jail.
+                speed_excess = 0
+                while res[0] == res[1]:
+                    speed_excess += 1
+                    if speed_excess == 3:
+                        Actions.go_to_jail(game, player)
+                        continue
+                    self.move_player(player, move)
+                    move, res = self.dices.roll()
+                self.move_player(player, move)
             self.turns_elapsed += 1
 
+    def move_player(self, player, move):
+        player.position += move
+        if player.position > 39:
+            player.position -= 40
+        current_player_space = self.board.spaces[player.position]
+        current_player_space.used += 1
+        if current_player_space.action:
+            current_player_space.action(self, player)
 
 if __name__ == "__main__":
     """Execute the game and shows spaces information."""
@@ -321,4 +338,3 @@ if __name__ == "__main__":
         space.nb_turn = total
 
     print(game.board)
-
